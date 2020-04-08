@@ -21,8 +21,8 @@ matplotlib.rcParams['font.size'] = 18
 # model
 num_class = 4
 
-batch_size = 32
-epoch = 5  # 训练的 epoch 数，从1开始计数
+batch_size = 16
+epoch = 10  # 训练的 epoch 数，从1开始计数
 display_step = 1
 
 # data to store
@@ -77,8 +77,8 @@ def cal_loss(logits, lab_batch):
 
 
 # 初始化模型和优化器
-the_model = YModel(n_classes=4, n_layers=5, width=20, strides=5)
-optimizer = tf.optimizers.RMSprop(learning_rate=0.0001, momentum=0.5)
+the_model = YModel(n_classes=4, n_layers=5, width_layer=20, strides=5)
+optimizer = tf.optimizers.RMSprop(learning_rate=0.0005, momentum=0.6)
 # # 获取模型中可训练的参数
 # 在这里得到的参数是0，因为自定义的网络，在build()执行之后才会有graph
 # trainable_vas = the_model.trainable_weights
@@ -117,13 +117,13 @@ try:
         print('epoch:{}, stpe:{}, loss:{:.3f}, acc:{:.3f}'.
               format(epoch_index, step, loss, accuracy))
 
-        # # 记录每个 step 的实验日志
-        # if epoch_index != 0:
-        #     loss_history.append(loss.numpy())
-        #     acc_history.append(accuracy.numpy())
-        # else:
-        #     test_loss_history.append(loss.numpy())
-        #     test_acc_history.append(accuracy.numpy())
+        # 记录每个 step 的实验日志
+        if epoch_index != 0:
+            loss_history.append(loss.numpy())
+            acc_history.append(accuracy.numpy())
+        else:
+            test_loss_history.append(loss.numpy())
+            test_acc_history.append(accuracy.numpy())
         #
         #     # 测试阶段，选择最好的一个批次，记录预测值和标签值，用于混淆矩阵分析
         #     # if best_acc < accuracy.numpy():

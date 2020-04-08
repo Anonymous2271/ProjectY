@@ -25,7 +25,7 @@ class input_data(object):
 
         self.num_class = num_class  # 数据集的类别数
 
-        self.train_fnames, self.train_labs, self.test_fnames, self.test_labs\
+        self.train_fnames, self.train_labs, self.test_fnames, self.test_labs \
             = self.get_filenames(self.file_dir)
 
     def get_filenames(self, file_dir):
@@ -44,27 +44,30 @@ class input_data(object):
                     label = class_names.index(train_class)
                     labels.append(int(label))
 
-        temp = np.array([filenames, labels])
+        filenames_list, lab_list = self.data_to_random(filenames, labels)
+
+        n_total = len(filenames_list)
+        n_test = int(n_total * 0.3)
+
+        test_fnames = filenames_list[0:n_test]
+        test_labs = lab_list[0:n_test]
+        train_fnames = filenames_list[n_test + 1:-1]
+        train_labs = lab_list[n_test + 1:-1]
+
+        # labels = [int(i) for i in labels]
+        print("训练数据 ：", n_total - n_test)
+        print("测试数据 ：", n_test)
+        return train_fnames, train_labs, test_fnames, test_labs
+
+    def data_to_random(self, a, b):
+        temp = np.array([a, b])
         # 矩阵转置，将数据按行排列，一行一个样本，image位于第一维，label位于第二维
         temp = temp.transpose()
         # 随机打乱顺序
         np.random.shuffle(temp)
-        filenames_list = list(temp[:, 0])
-        lab_list = list(temp[:, 1])
-
-        n_total = len(filenames_list)
-        n_test = int(n_total*0.3)
-
-        test_fnames = filenames_list[0:n_test]
-        test_labs = lab_list[0:n_test]
-        train_fnames = filenames_list[n_test+1:-1]
-        train_labs = lab_list[n_test+1:-1]
-
-        # labels = [int(i) for i in labels]
-        print("训练数据 ：", n_total-n_test)
-        print("测试数据 ：", n_test)
-
-        return train_fnames, train_labs, test_fnames, test_labs
+        a = list(temp[:, 0])
+        b = list(temp[:, 1])
+        return a, b
 
     def next_batch(self, batch_size, epoch=1):
         """
@@ -79,7 +82,7 @@ class input_data(object):
         else:
             max = len(self.test_fnames)
 
-        if self.file_point == max:
+        if self.file_point == max or self.file_point + batch_size > max:
             if not self.training:
                 # 文件指针到达末尾，并且当前是测试阶段，因此实验完成，抛出异常，让 eager_main.py 接管程序控制
                 raise MyException('数据输送完成')
@@ -87,6 +90,8 @@ class input_data(object):
             # 文件指针到达末尾，当前是训练阶段，因此进入下一个 epoch
             self.epoch_index += 1
             self.file_point = 0
+            # 打乱训练数据
+            self.train_fnames, self.train_labs = self.data_to_random(self.train_fnames, self.train_labs)
 
         if self.epoch_index > epoch:
             # 当完成了 epoch 次重复训练，epoch_index置为0，进入测试阶段
@@ -101,8 +106,9 @@ class input_data(object):
         # 本 batch 的文件结束索引 = 当前文件指针位置 + batch大小
         end = self.file_point + batch_size
 
-        # if end >= max:
-        #     end = max
+        # if end > max:
+        # 最后一个批次不足 batch_size 时
+        # end = max
 
         x_data = []  # 训练数据
         y_data = []  # 训练标签，zero-filled list for 'one hot encoding'
@@ -148,4 +154,3 @@ class input_data(object):
 
         # print(np.shape(np.asarray(x_data, dtype=np.float32)))
         return np.asarray(x_data, dtype=np.float32), np.asarray(y_data, dtype=np.int32), self.epoch_index
-
