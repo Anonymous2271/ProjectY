@@ -15,15 +15,14 @@ from MyException import MyException
 from class_names import class_names
 
 
-class input_data(object):
-
-    def __init__(self, file_dir, num_class=4):
+class BatchGenerator(object):
+    def __init__(self, file_dir, n_classes=4):
         self.file_dir = file_dir
         self.training = True  # 指示当前状态是训练还是测试
         self.epoch_index = 1  # epoch 次数指针，训练从1开始计数，训练数据输送完会指0，开始输送测试数据，next_batch方法会给调用者返回这个值
         self.file_point = 0  # epoch 内的文件指针，每一个新的 epoch 重新归 0
 
-        self.num_class = num_class  # 数据集的类别数
+        self.n_classes = n_classes  # 数据集的类别数
 
         self.train_fnames, self.train_labs, self.test_fnames, self.test_labs \
             = self.get_filenames(self.file_dir)
@@ -92,6 +91,7 @@ class input_data(object):
             self.file_point = 0
             # 打乱训练数据
             self.train_fnames, self.train_labs = self.data_to_random(self.train_fnames, self.train_labs)
+            print('打乱训练数据, epoch=', self.epoch_index)
 
         if self.epoch_index > epoch:
             # 当完成了 epoch 次重复训练，epoch_index置为0，进入测试阶段
@@ -140,7 +140,7 @@ class input_data(object):
             x_data.append(features)  # (image.data, dtype='float32')
 
             # 生成 one-hot 标签
-            one_hot = np.zeros(int(self.num_class), dtype=np.int32)
+            one_hot = np.zeros(int(self.n_classes), dtype=np.int32)
 
             if self.training:
                 one_hot[int(self.train_labs[self.file_point])] = 1

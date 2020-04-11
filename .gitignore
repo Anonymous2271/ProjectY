@@ -4,3 +4,6 @@
 *.mp3
 *.jpg
 *.png
+
+hid_pic/*
+tensor_logs/*

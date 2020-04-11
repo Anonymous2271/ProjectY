@@ -9,7 +9,7 @@
 
 import tensorflow as tf
 import time
-import input_data
+from input_data import BatchGenerator
 from MyException import MyException
 from y_model import YModel
 import matplotlib.pyplot as plt
@@ -18,12 +18,17 @@ matplotlib.rcParams['font.size'] = 18
 # tf.keras.backend.clear_session()
 # tf.enable_eager_execution()
 
-# model
-num_class = 4
-
+# model para
+n_classes = 4
+learning_rate = 0.001
+momentum = 0.8
+n_layers = 4
+width_layer = 20
+strides = 3
 batch_size = 16
-epoch = 10  # 训练的 epoch 数，从1开始计数
+epoch = 1  # 训练的 epoch 数，从1开始计数
 display_step = 1
+is_train = True
 
 # data to store
 loss_history = []
@@ -60,8 +65,16 @@ def txt_save(data_m, name):
     print(name + 'saved')
 
 
+# 学习率衰减函数
+def scheduler(epoch):
+    return learning_rate * (0.8**(epoch-1))
+
+
+change_Lr = tf.keras.callbacks.LearningRateScheduler(scheduler)
+
+
 # 初始化 input_data 类的对象
-fuckdata = input_data.input_data(file_dir='E:/数据集/sounds_data/new_images', num_class=num_class)
+batch_generator = BatchGenerator(file_dir='E:/数据集/sounds_data/small', n_classes=n_classes)
 
 
 def cal_loss(logits, lab_batch):
@@ -77,8 +90,8 @@ def cal_loss(logits, lab_batch):
 
 
 # 初始化模型和优化器
-the_model = YModel(n_classes=4, n_layers=5, width_layer=20, strides=5)
-optimizer = tf.optimizers.RMSprop(learning_rate=0.0005, momentum=0.6)
+the_model = YModel(n_classes=n_classes, n_layers=n_layers, width_layer=width_layer, strides=strides)
+optimizer = tf.optimizers.RMSprop(learning_rate=learning_rate, momentum=momentum, decay=1e-6)
 # # 获取模型中可训练的参数
 # 在这里得到的参数是0，因为自定义的网络，在build()执行之后才会有graph
 # trainable_vas = the_model.trainable_weights
@@ -86,19 +99,19 @@ optimizer = tf.optimizers.RMSprop(learning_rate=0.0005, momentum=0.6)
 
 step = 1  # 训练step，一个 step 处理一个 batch 的数据
 try:
-    while True:  # 从训练到测试的节奏由 fuckdata.next_batch 控制，因此写个死循环就行
-        batch_x, batch_y, epoch_index = fuckdata.next_batch(batch_size=batch_size, epoch=epoch)
+    while True:  # 从训练到测试的节奏由 batch_generator 控制，因此写个无限循环就行
+        batch_x, batch_y, epoch_index = batch_generator.next_batch(batch_size=batch_size, epoch=epoch)
         # learning_rate = my_learning_rate(epoch_index, step)
         if epoch_index != 0:
-            pass
+            is_train = True
             # 判定训练
         else:
-            pass
+            is_train = False
             # 判定测试
 
         # 记录梯度
         with tf.GradientTape() as tape:
-            logits = the_model(batch_x)
+            logits = the_model(inputs=batch_x, is_train=is_train)
             loss = cal_loss(logits, batch_y)
 
         # 如果为训练阶段，则应用梯度下降，让模型学习；测试阶段什么都不做
@@ -130,11 +143,11 @@ try:
         #     #     y_pred = tf.math.argmax(logits, axis=1).numpy()
         #     #     y_true = tf.math.argmax(batch_y, axis=1).numpy()
         #     #     best_acc = accuracy.numpy()
-        #     # 测试阶段，记录全部批次的记录预测值和标签值，用于混淆矩阵分析
-        #     for l in tf.math.argmax(logits, axis=1).numpy():
-        #         y_pred.append(l)
-        #     for y in tf.math.argmax(batch_y, axis=1).numpy():
-        #         y_true.append(y)
+            # 测试阶段，记录全部批次的记录预测值和标签值，用于混淆矩阵分析
+            for l in tf.math.argmax(logits, axis=1).numpy():
+                y_pred.append(l)
+            for y in tf.math.argmax(batch_y, axis=1).numpy():
+                y_true.append(y)
 
 
 except MyException as e:
@@ -166,8 +179,8 @@ except MyException as e:
     plt.show()
 
     # 保存日志文件
-    # data_m = [loss_history, acc_history, test_loss_history, test_acc_history]
-    # txt_save(data_m, name='lines')
-    # txt_save([y_pred, y_true], name='y_')
+    data_m = [loss_history, acc_history, test_loss_history, test_acc_history]
+    txt_save(data_m, name='lines')
+    txt_save([y_pred, y_true], name='y_')
     pass
 
