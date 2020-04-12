@@ -33,7 +33,7 @@ class LinkMemoryLayer(keras.layers.Layer):
         self.conv_relation = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[self.f_para[1], self.f_para[2]],
                                                  strides=[self.f_para[3], self.f_para[4]], padding='same',
                                                  activation=tf.nn.leaky_relu, data_format='channels_first')
-        # self.pool_relation = keras.layers.MaxPool2D(pool_size=[1, 2], strides=[1, 2], padding='valid',
+        # self.pool_relation = keras.layers.MaxPool2D(pool_size=[2, 2], strides=[2, 2], padding='valid',
         #                                             data_format='channels_first')
         self.batch_norm = keras.layers.BatchNormalization()
 
@@ -45,25 +45,24 @@ class LinkMemoryLayer(keras.layers.Layer):
         # self.V_weight = self.add_weight(shape=[1, self.f_para[0], h, h],
         #                                 initializer=keras.initializers.he_normal())
         # 版本 2 and 3 的参数 #################
-        self.conv_gate = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[w, w], strides=[1, 1],
-                                             padding='valid', activation=tf.nn.leaky_relu, data_format='channels_first')
-        self.pool_gate = keras.layers.MaxPool1D(pool_size=2, strides=2, padding='valid',
-                                                data_format='channels_first')
-        self.flatten = keras.layers.Flatten(data_format='channels_first')
-        self.dense_gate = keras.layers.Dense(units=self.f_para[0] * h * w, activation=tf.nn.sigmoid)
+        # self.conv_gate = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[w, w], strides=[1, 1],
+        #                                      padding='valid', activation=tf.nn.leaky_relu, data_format='channels_first')
+        # self.pool_gate = keras.layers.MaxPool1D(pool_size=2, strides=2, padding='valid',
+        #                                         data_format='channels_first')
+        # self.flatten = keras.layers.Flatten(data_format='channels_first')
+        # self.dense_gate = keras.layers.Dense(units=self.f_para[0] * h * w, activation=tf.nn.sigmoid)
 
         # self.deconv_gate = keras.layers.Conv2DTranspose(filters=self.f_para[0], kernel_size=[w, w], strides=[1, 1],
         #                                                 padding='valid', activation=tf.nn.sigmoid, data_format='channels_first')
         # 版本 4  的参数 ####################
-        # self.conv_gate = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[1, 1], strides=[1, 1],
-        #                                      padding='valid', activation=tf.nn.sigmoid, data_format='channels_first')
+        self.conv_gate = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[3, 3], strides=[1, 1],
+                                             padding='same', activation=tf.nn.sigmoid, data_format='channels_first')
 
     def call(self, inputs, **kwargs):
         # [?, filter[0], h, w]
         feat_relation = self.conv_relation(inputs)
         feat_relation = self.batch_norm(feat_relation)
-        # feat_relation = self.pool_relation(feat_relation)
-
+        # [?, ?, 38, 8]
         ################################
         # 版本 1 ：使用 GRU 的门控逻辑，优点是1)参数少，需要训练的参数就两个；2)可以做到与卷积通道相对应
         ################################
@@ -74,20 +73,23 @@ class LinkMemoryLayer(keras.layers.Layer):
         ################################
         # 版本 2 and 3 ：使用全连接层/反卷积作为门控逻辑
         ################################
-        fea_vector = self.conv_gate(feat_relation)
-        # 2 ####
-        fea_vector = self.pool_gate(tf.squeeze(fea_vector))
-        fea_vector = self.flatten(fea_vector)
-        gate_vector = self.dense_gate(fea_vector)
-        gate = tf.reshape(gate_vector, shape=feat_relation.get_shape().as_list())
+        # feat_pool = self.pool_relation(feat_relation)
+        # [?, ?, 19, 4]
+        #
+        # fea_vector = self.conv_gate(tf.concat([feat_relation, self.Memory], axis=1))
+        # 版本 2 ####
+        # fea_vector = self.pool_gate(tf.squeeze(fea_vector))
+        # fea_vector = self.flatten(fea_vector)
+        # gate_vector = self.dense_gate(fea_vector)
+        # gate = tf.reshape(gate_vector, shape=feat_relation.get_shape().as_list())
         # 3 ####
         # gate = self.deconv_gate(fea_vector)
         ################################
-        # 版本 4 ：使用1*1维卷积
+        # 版本 4 ：使用卷积
         ################################
-        # gate = self.conv_gate(feat_relation)
+        gate = self.conv_gate(tf.concat([feat_relation, self.Memory], axis=1))
 
         # 门控
         self.Memory = tf.multiply(gate, self.Memory) + tf.multiply(1 - gate, feat_relation)
-        self.Memory = tf.tanh(self.Memory)
+        # self.Memory = tf.tanh(self.Memory)
         return self.Memory

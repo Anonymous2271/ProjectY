@@ -15,6 +15,9 @@ import os
 import time
 from y_layer import LinkMemoryLayer
 
+# 用来存储隐藏层特征图的子文件夹
+h_layer_fea_dir = '增加参数'
+
 
 class YModel(keras.layers.Layer):
     def __init__(self, n_layers, n_classes, width_layer, strides):
@@ -26,11 +29,15 @@ class YModel(keras.layers.Layer):
         self.width_net = (n_layers + 1) * width_layer
         self.i = 0  # 画图的batch计数器
 
-        # 低级特征采集层，参数共享
-        self.spec_conv = keras.layers.Conv2D(filters=8, kernel_size=[5, 5], strides=[2, 2], padding='valid',
-                                             activation=tf.nn.leaky_relu, use_bias=True, data_format='channels_first')
+        # 低级特征采集层，所有层参数共享
+        self.spec_conv1 = keras.layers.Conv2D(filters=8, kernel_size=[3, 3], strides=[1, 1], padding='valid',
+                                              activation=tf.nn.leaky_relu, use_bias=True, data_format='channels_first')
+        self.spec_conv2 = keras.layers.Conv2D(filters=8, kernel_size=[3, 3], strides=[1, 1], padding='valid',
+                                              activation=tf.nn.leaky_relu, use_bias=True, data_format='channels_first')
         self.spec_pool = keras.layers.MaxPool2D(pool_size=[2, 2], strides=[2, 2], padding='valid',
                                                 data_format='channels_first')
+        self.batch_norm = keras.layers.BatchNormalization()
+
         # 链式记忆层，参数不共享
         self.lay1 = LinkMemoryLayer(filter_para=[8, 3, 3, 1, 1], my_name='lay1')
         self.lay2 = LinkMemoryLayer(filter_para=[8, 3, 3, 1, 1], my_name='lay2')
@@ -39,10 +46,17 @@ class YModel(keras.layers.Layer):
         # 降维分类
         # self.gap = tf.keras.layers.GlobalAvgPool2D(data_format='channels_first')
         self.flatten = keras.layers.Flatten(data_format='channels_first')
-        self.dense = tf.keras.layers.Dense(units=4, activation=tf.nn.sigmoid)
+        self.dense = tf.keras.layers.Dense(units=4, activation=tf.nn.leaky_relu)
 
         # for i in range(n_layers):
         #     locals()['layer_' + str(i)] = link_memory_unit(width=width, n_filters1=8, n_filters2=4)
+
+    def shared_layer(self, inputs):
+        out1 = self.spec_conv1(inputs)
+        out2 = self.spec_conv2(out1)
+        out3 = self.spec_pool(out2)
+        out4 = self.batch_norm(out3)
+        return out4
 
     def call(self, inputs, is_train=True, **kwargs):
         """
@@ -63,15 +77,13 @@ class YModel(keras.layers.Layer):
             s2 = tf.slice(inputs, [0, 0, 0, index + self.width_layer * 2], [-1, -1, -1, self.width_layer])
             s3 = tf.slice(inputs, [0, 0, 0, index + self.width_layer * 3], [-1, -1, -1, self.width_layer])
             s4 = tf.slice(inputs, [0, 0, 0, index + self.width_layer * 4], [-1, -1, -1, self.width_layer])
-            # s5 = tf.slice(inputs, [0, 0, 0, index + self.width_layer * 5], [-1, -1, -1, self.width_layer])
             # [?, ?, 80, 20]
 
-            s_fea0 = self.spec_pool(self.spec_conv(s0))
-            s_fea1 = self.spec_pool(self.spec_conv(s1))
-            s_fea2 = self.spec_pool(self.spec_conv(s2))
-            s_fea3 = self.spec_pool(self.spec_conv(s3))
-            s_fea4 = self.spec_pool(self.spec_conv(s4))
-            # s_fea5 = self.spec_pool(self.spec_conv(s5))
+            s_fea0 = self.shared_layer(s0)
+            s_fea1 = self.shared_layer(s1)
+            s_fea2 = self.shared_layer(s2)
+            s_fea3 = self.shared_layer(s3)
+            s_fea4 = self.shared_layer(s4)
             # [?, ?, 19, 4]
 
             f1 = self.lay1(inputs=tf.concat([s_fea0, s_fea1], axis=1))
@@ -79,11 +91,11 @@ class YModel(keras.layers.Layer):
             f3 = self.lay3(inputs=tf.concat([f2, s_fea3], axis=1))
             f4 = self.lay4(inputs=tf.concat([f3, s_fea4], axis=1))
             # f5 = self.lay5(inputs=tf.concat([f4, s_fea5], axis=1))
-            # [?, ?, 19, 4]
+            # [?, ?, 38, 8]
 
-            if not is_train and index + self.width_net + self.strides > len_input:
-                # 此次是最后一个时间步
-                self.draw_hid_features(inputs=inputs, h_fea=tf.concat([f1, f2, f3, f4], axis=-1))
+            # 此次是最后一个时间步
+            # if not is_train and index + self.width_net + self.strides > len_input
+            #     self.draw_hid_features(inputs=inputs, h_fea=tf.concat([f1, f2, f3, f4], axis=-1))
 
             logits.append(f4)
             index += self.strides
@@ -108,8 +120,7 @@ class YModel(keras.layers.Layer):
             yuan_tu = inputs[index_sample]
             # yuan_tu = np.hstack(yuan_tus)
 
-            t_s = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-            save_dir = 'hid_pic/' + t_s + '/batch_' + str(self.i) + '/' + str(index_sample)
+            save_dir = 'hid_pic/' + h_layer_fea_dir + '/batch_' + str(self.i) + '/' + str(index_sample)
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
             Image.fromarray(yuan_tu).convert('RGB').save(save_dir + '/' + 'yuan_tu.jpg')

@@ -19,15 +19,17 @@ matplotlib.rcParams['font.size'] = 18
 # tf.enable_eager_execution()
 
 # model para
-n_classes = 4
-learning_rate = 0.001
+learning_rate = 0.0001
 momentum = 0.8
+clip_norm = 2
+
 n_layers = 4
 width_layer = 20
 strides = 3
-batch_size = 16
+batch_size = 20
 epoch = 1  # 训练的 epoch 数，从1开始计数
 display_step = 1
+n_classes = 4
 is_train = True
 
 # data to store
@@ -91,7 +93,7 @@ def cal_loss(logits, lab_batch):
 
 # 初始化模型和优化器
 the_model = YModel(n_classes=n_classes, n_layers=n_layers, width_layer=width_layer, strides=strides)
-optimizer = tf.optimizers.RMSprop(learning_rate=learning_rate, momentum=momentum, decay=1e-6)
+optimizer = tf.optimizers.RMSprop(learning_rate=learning_rate, momentum=momentum)
 # # 获取模型中可训练的参数
 # 在这里得到的参数是0，因为自定义的网络，在build()执行之后才会有graph
 # trainable_vas = the_model.trainable_weights
@@ -117,7 +119,9 @@ try:
         # 如果为训练阶段，则应用梯度下降，让模型学习；测试阶段什么都不做
         if epoch_index != 0:
             # print(len(the_model.trainable_weights))
+
             grads = tape.gradient(loss, the_model.trainable_weights)
+            grads, _ = tf.clip_by_global_norm(grads, clip_norm=clip_norm)
             optimizer.apply_gradients(zip(grads, the_model.trainable_weights))
         else:
             pass
