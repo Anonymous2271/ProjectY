@@ -10,4 +10,13 @@
 class_names = '''Anser+anser
 Buteo+buteo
 Oriolus+oriolus
-Pica+pica'''.split("\n")
+Pica+pica
+Chiffchaff
+Parus
+Warbler
+Blackbird'''.split("\n")
+
+# class_names = '''Blackbird
+# Chiffchaff
+# Parus
+# Warbler'''.split("\n")

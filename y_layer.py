@@ -32,18 +32,20 @@ class LinkMemoryLayer(keras.layers.Layer):
 
         self.conv_relation = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[self.f_para[1], self.f_para[2]],
                                                  strides=[self.f_para[3], self.f_para[4]], padding='same',
-                                                 activation=tf.nn.leaky_relu, data_format='channels_first')
+                                                 activation=None, data_format='channels_first',
+                                                 kernel_initializer=keras.initializers.glorot_uniform,
+                                                 bias_initializer=keras.initializers.zeros)
         # self.pool_relation = keras.layers.MaxPool2D(pool_size=[2, 2], strides=[2, 2], padding='valid',
         #                                             data_format='channels_first')
         self.batch_norm = keras.layers.BatchNormalization()
-
+        self.activate = keras.layers.LeakyReLU()
         self.Memory = self.add_weight(shape=[self.batch_size, self.f_para[0], h, w],
-                                      initializer=keras.initializers.he_normal(), trainable=False)
+                                      initializer=keras.initializers.orthogonal, trainable=False)
         # 版本 1 的参数 #################
         # self.U_weight = self.add_weight(shape=[1, self.f_para[0], h, h],
-        #                                 initializer=keras.initializers.he_normal())
+        #                                 initializer=keras.initializers.glorot_uniform())
         # self.V_weight = self.add_weight(shape=[1, self.f_para[0], h, h],
-        #                                 initializer=keras.initializers.he_normal())
+        #                                 initializer=keras.initializers.glorot_uniform())
         # 版本 2 and 3 的参数 #################
         # self.conv_gate = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[w, w], strides=[1, 1],
         #                                      padding='valid', activation=tf.nn.leaky_relu, data_format='channels_first')
@@ -55,13 +57,16 @@ class LinkMemoryLayer(keras.layers.Layer):
         # self.deconv_gate = keras.layers.Conv2DTranspose(filters=self.f_para[0], kernel_size=[w, w], strides=[1, 1],
         #                                                 padding='valid', activation=tf.nn.sigmoid, data_format='channels_first')
         # 版本 4  的参数 ####################
-        self.conv_gate = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[3, 3], strides=[1, 1],
-                                             padding='same', activation=tf.nn.sigmoid, data_format='channels_first')
+        self.conv_gate = keras.layers.Conv2D(filters=self.f_para[0], kernel_size=[5, 5], strides=[1, 1], padding='same',
+                                             activation=tf.nn.sigmoid, data_format='channels_first',
+                                             kernel_initializer=keras.initializers.glorot_uniform,
+                                             bias_initializer=keras.initializers.zeros)
 
     def call(self, inputs, **kwargs):
         # [?, filter[0], h, w]
         feat_relation = self.conv_relation(inputs)
         feat_relation = self.batch_norm(feat_relation)
+        feat_relation = self.activate(feat_relation)
         # [?, ?, 38, 8]
         ################################
         # 版本 1 ：使用 GRU 的门控逻辑，优点是1)参数少，需要训练的参数就两个；2)可以做到与卷积通道相对应
@@ -91,5 +96,5 @@ class LinkMemoryLayer(keras.layers.Layer):
 
         # 门控
         self.Memory = tf.multiply(gate, self.Memory) + tf.multiply(1 - gate, feat_relation)
-        # self.Memory = tf.tanh(self.Memory)
+        self.Memory = tf.nn.tanh(self.Memory)
         return self.Memory

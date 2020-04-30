@@ -1,7 +1,7 @@
 # coding: utf-8
 # ---
 # @File: test.py
-# @description: RNN模拟
+# @description:
 # @Author: Xin Zhang
 # @E-mail: meetdevin.zh@outlook.com
 # @Time: 3月22, 2020
@@ -9,7 +9,9 @@
 
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 from PIL import Image
+from scipy.interpolate import make_lsq_spline, BSpline
 
 # class MyLayer(tf.keras.layers.Layer):
 #     def __init__(self, unit=32):
@@ -58,33 +60,35 @@ from PIL import Image
 # print(my_block.trainable_weights)
 
 
-# the format of value: [NHWC]
-shape = (28, 28)
-initializer = tf.initializers.he_normal()
-value = tf.Variable(initializer(shape=shape))
-
-# conv_gate = tf.keras.layers.Conv2D(filters=3, kernel_size=[5, 5], strides=[1, 1],
-#                                    padding='valid', activation=tf.nn.leaky_relu, data_format='channels_first')
+y = np.array([2, 6, 4, 1, 8, 12, 23, 15, 6, 13])
+x = range(len(y))
 #
-# deconv_gate = tf.keras.layers.Conv2DTranspose(filters=3, kernel_size=[5, 5], strides=[1, 1],
-#                                               padding='valid', activation=tf.nn.leaky_relu, data_format='channels_first')
+# 求点的拟合曲线
+# parameter = np.polyfit(x=x, y=y, deg=4)  # 输出三次方程的参数
+# p = np.poly1d(parameter)  # 根据参数输出方程
+# print(p)
 #
-# a = conv_gate(value)
-#
-# b = deconv_gate(a)
-#
-# print(np.shape(a))
-# print(np.shape(b))
+# plt.plot(p(x))
+# plt.show()
 
-import tensorflow as tf
-import cv2
+y = np.array([2, 6, 4, 1, 8, 12, 23, 15, 6, 13])
 
-# Create a 3x3 Gabor filter
-params = {'ksize':(3, 3), 'sigma':1.0, 'theta': 0, 'lambd':15.0, 'gamma':0.02}
-filter = cv2.getGaborKernel(**params)
-# make the filter to have 4 dimensions.
-filter = tf.expand_dims(filter, 2)
-filter = tf.expand_dims(filter, 3)
 
-# Apply the filter on `image`
-answer = tf.conv2d(image, filter, strides=[1, 1, 1, 1], padding='SAME')
+def smooth(values, weight=0.5):
+    """
+    :param values: 点集合
+    :param weight: 平滑度
+    :return:
+    """
+    last = values[0]  # 上一个值
+    smoothed = []
+    for point in values:
+        smoothed_val = last * weight + (1 - weight) * point  # 这个方程是从 Tensorboard 源码中扒出来的
+        smoothed.append(smoothed_val)
+        last = smoothed_val
+
+    return smoothed
+
+
+plt.plot(smooth(values=y))
+plt.show()

@@ -12,7 +12,6 @@ import tensorflow.keras as keras
 import numpy as np
 from PIL import Image
 import os
-import time
 from y_layer import LinkMemoryLayer
 
 # 用来存储隐藏层特征图的子文件夹
@@ -30,33 +29,42 @@ class YModel(keras.layers.Layer):
         self.i = 0  # 画图的batch计数器
 
         # 低级特征采集层，所有层参数共享
-        self.spec_conv1 = keras.layers.Conv2D(filters=8, kernel_size=[3, 3], strides=[1, 1], padding='valid',
-                                              activation=tf.nn.leaky_relu, use_bias=True, data_format='channels_first')
-        self.spec_conv2 = keras.layers.Conv2D(filters=8, kernel_size=[3, 3], strides=[1, 1], padding='valid',
-                                              activation=tf.nn.leaky_relu, use_bias=True, data_format='channels_first')
+        self.spec_conv1 = keras.layers.Conv2D(filters=16, kernel_size=[5, 5], strides=[1, 1], padding='valid',
+                                              activation=None, use_bias=True, data_format='channels_first',
+                                              kernel_initializer=keras.initializers.glorot_uniform,
+                                              bias_initializer=keras.initializers.zeros)
+        # self.spec_conv2 = keras.layers.Conv2D(filters=8, kernel_size=[3, 3], strides=[1, 1], padding='valid',
+        #                                       activation=None, use_bias=True, data_format='channels_first',
+        #                                       kernel_initializer=keras.initializers.glorot_uniform,
+        #                                       bias_initializer=keras.initializers.zeros)
         self.spec_pool = keras.layers.MaxPool2D(pool_size=[2, 2], strides=[2, 2], padding='valid',
                                                 data_format='channels_first')
         self.batch_norm = keras.layers.BatchNormalization()
+        self.activate = keras.layers.LeakyReLU()
 
         # 链式记忆层，参数不共享
-        self.lay1 = LinkMemoryLayer(filter_para=[8, 3, 3, 1, 1], my_name='lay1')
-        self.lay2 = LinkMemoryLayer(filter_para=[8, 3, 3, 1, 1], my_name='lay2')
-        self.lay3 = LinkMemoryLayer(filter_para=[8, 3, 3, 1, 1], my_name='lay3')
-        self.lay4 = LinkMemoryLayer(filter_para=[8, 3, 3, 1, 1], my_name='lay4')
+        self.lay1 = LinkMemoryLayer(filter_para=[8, 5, 5, 1, 1], my_name='lay1')
+        self.lay2 = LinkMemoryLayer(filter_para=[8, 5, 5, 1, 1], my_name='lay2')
+        self.lay3 = LinkMemoryLayer(filter_para=[8, 5, 5, 1, 1], my_name='lay3')
+        self.lay4 = LinkMemoryLayer(filter_para=[8, 5, 5, 1, 1], my_name='lay4')
         # 降维分类
-        # self.gap = tf.keras.layers.GlobalAvgPool2D(data_format='channels_first')
-        self.flatten = keras.layers.Flatten(data_format='channels_first')
-        self.dense = tf.keras.layers.Dense(units=4, activation=tf.nn.leaky_relu)
+        self.gap = tf.keras.layers.GlobalAvgPool2D(data_format='channels_first')
+        # self.flatten = keras.layers.Flatten(data_format='channels_first')
+        # self.dense = tf.keras.layers.Dense(units=n_classes, activation=tf.nn.leaky_relu)
 
         # for i in range(n_layers):
         #     locals()['layer_' + str(i)] = link_memory_unit(width=width, n_filters1=8, n_filters2=4)
 
     def shared_layer(self, inputs):
-        out1 = self.spec_conv1(inputs)
-        out2 = self.spec_conv2(out1)
-        out3 = self.spec_pool(out2)
-        out4 = self.batch_norm(out3)
-        return out4
+        out = self.spec_conv1(inputs)
+        out = self.batch_norm(out)
+        out = self.activate(out)
+
+        # out = self.spec_conv2(out)
+        # out = self.batch_norm(out)
+        # out = self.activate(out)
+        out = self.spec_pool(out)
+        return out
 
     def call(self, inputs, is_train=True, **kwargs):
         """
@@ -101,8 +109,8 @@ class YModel(keras.layers.Layer):
             index += self.strides
 
         # print(logits[-1].get_shape().as_list())
-        # return self.gap(logits[-1])
-        return self.dense(self.flatten(logits[-1]))
+        return self.gap(logits[-1])
+        # return self.dense(self.flatten(logits[-1]))
 
     def draw_hid_features(self, inputs, h_fea):
         """
@@ -129,7 +137,6 @@ class YModel(keras.layers.Layer):
             for feature in sample:
                 # [19, 20]
                 save_path = save_dir + '/' + str(index_channel) + '.jpg'
-                # scipy.misc.imsave(save_path, feature.T)
                 feature = np.array((feature - np.min(feature)) / (np.max(feature) - np.min(feature)) * 255, dtype=int)
                 Image.fromarray(feature.T).convert('L').save(save_path)
                 index_channel += 1

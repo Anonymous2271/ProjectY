@@ -16,13 +16,15 @@ from class_names import class_names
 
 
 class BatchGenerator(object):
-    def __init__(self, file_dir, n_classes=4):
+    def __init__(self, file_dir, n_classes=4, rate_subset=1, rate_test=0.3):
         self.file_dir = file_dir
         self.training = True  # 指示当前状态是训练还是测试
         self.epoch_index = 1  # epoch 次数指针，训练从1开始计数，训练数据输送完会指0，开始输送测试数据，next_batch方法会给调用者返回这个值
         self.file_point = 0  # epoch 内的文件指针，每一个新的 epoch 重新归 0
 
         self.n_classes = n_classes  # 数据集的类别数
+        self.rate_subset = rate_subset
+        self.rate_test = rate_test
 
         self.train_fnames, self.train_labs, self.test_fnames, self.test_labs \
             = self.get_filenames(self.file_dir)
@@ -45,9 +47,15 @@ class BatchGenerator(object):
 
         filenames_list, lab_list = self.data_to_random(filenames, labels)
 
+        # 子集，当不需要完整数据集的时候，用来生成子集
         n_total = len(filenames_list)
-        n_test = int(n_total * 0.3)
+        n_subset = int(n_total * self.rate_subset)
+        filenames_list = filenames_list[0:n_subset]
+        lab_list = lab_list[0:n_subset]
 
+        # 划分训练和测试
+        n_total = len(filenames_list)
+        n_test = int(n_total * self.rate_test)
         test_fnames = filenames_list[0:n_test]
         test_labs = lab_list[0:n_test]
         train_fnames = filenames_list[n_test + 1:-1]
@@ -62,6 +70,7 @@ class BatchGenerator(object):
         temp = np.array([a, b])
         # 矩阵转置，将数据按行排列，一行一个样本，image位于第一维，label位于第二维
         temp = temp.transpose()
+        print('shape of temp:', np.shape(temp))
         # 随机打乱顺序
         np.random.shuffle(temp)
         a = list(temp[:, 0])
