@@ -11,10 +11,10 @@ class_names = '''Anser+anser
 Buteo+buteo
 Oriolus+oriolus
 Pica+pica
-Chiffchaff
-Parus
-Warbler
-Blackbird'''.split("\n")
+Turdus+merula
+Phylloscopus+trochilus
+Parus+major
+Phylloscopus+collybita'''.split("\n")
 
 # class_names = '''Blackbird
 # Chiffchaff

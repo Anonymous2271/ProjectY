@@ -16,15 +16,16 @@ from class_names import class_names
 
 
 class BatchGenerator(object):
-    def __init__(self, file_dir, n_classes=4, rate_subset=1, rate_test=0.3):
+    def __init__(self, file_dir, n_classes=8, rate_subset=1, rate_test=0.3, is_one_hot=False):
         self.file_dir = file_dir
         self.training = True  # 指示当前状态是训练还是测试
         self.epoch_index = 1  # epoch 次数指针，训练从1开始计数，训练数据输送完会指0，开始输送测试数据，next_batch方法会给调用者返回这个值
         self.file_point = 0  # epoch 内的文件指针，每一个新的 epoch 重新归 0
 
         self.n_classes = n_classes  # 数据集的类别数
-        self.rate_subset = rate_subset
-        self.rate_test = rate_test
+        self.rate_subset = rate_subset  # 训练测试所使用的数据，占全部数据的比例
+        self.rate_test = rate_test  # 测试数据占使用的数据的比例
+        self.is_one_hot = is_one_hot  # 是否使用 one-hot 标签，这里在训练是使用的损失函数是不一样的
 
         self.train_fnames, self.train_labs, self.test_fnames, self.test_labs \
             = self.get_filenames(self.file_dir)
@@ -73,9 +74,9 @@ class BatchGenerator(object):
         print('shape of temp:', np.shape(temp))
         # 随机打乱顺序
         np.random.shuffle(temp)
-        a = list(temp[:, 0])
-        b = list(temp[:, 1])
-        return a, b
+        a_ = list(temp[:, 0])
+        b_ = list(temp[:, 1])
+        return a_, b_
 
     def next_batch(self, batch_size, epoch=1):
         """
@@ -94,13 +95,13 @@ class BatchGenerator(object):
             if not self.training:
                 # 文件指针到达末尾，并且当前是测试阶段，因此实验完成，抛出异常，让 eager_main.py 接管程序控制
                 raise MyException('数据输送完成')
-
-            # 文件指针到达末尾，当前是训练阶段，因此进入下一个 epoch
-            self.epoch_index += 1
-            self.file_point = 0
-            # 打乱训练数据
-            self.train_fnames, self.train_labs = self.data_to_random(self.train_fnames, self.train_labs)
-            print('打乱训练数据, epoch=', self.epoch_index)
+            else:
+                # 文件指针到达末尾，当前是训练阶段，因此进入下一个 epoch
+                self.epoch_index += 1
+                self.file_point = 0
+                # 打乱训练数据
+                self.train_fnames, self.train_labs = self.data_to_random(self.train_fnames, self.train_labs)
+                print('打乱训练数据, epoch=', self.epoch_index)
 
         if self.epoch_index > epoch:
             # 当完成了 epoch 次重复训练，epoch_index置为0，进入测试阶段
@@ -130,7 +131,7 @@ class BatchGenerator(object):
                 imagePath = self.test_fnames[self.file_point]
             try:
                 # list.shape=[80, 600] 这里可以换成其他任何读取单个样本的数据
-                features = np.asarray(Image.open(imagePath))
+                x = np.asarray(Image.open(imagePath))
 
             # 如果出现数据获取异常，则放弃该数据，获取下一个，为保持 batch_size 恒定， 让 end+1
             except EOFError:
@@ -145,18 +146,23 @@ class BatchGenerator(object):
                 continue
 
             # 添加颜色通道，为数据增加一个维度
-            features = np.expand_dims(features, axis=0)
-            x_data.append(features)  # (image.data, dtype='float32')
+            x = np.expand_dims(x, axis=0)
+            x_data.append(x)  # (image.data, dtype='float32')
 
-            # 生成 one-hot 标签
-            one_hot = np.zeros(int(self.n_classes), dtype=np.int32)
-
+            # 生成标签
             if self.training:
-                one_hot[int(self.train_labs[self.file_point])] = 1
+                y_index = int(self.train_labs[self.file_point])
             else:
-                one_hot[int(self.test_labs[self.file_point])] = 1
+                y_index = int(self.test_labs[self.file_point])
 
-            y_data.append(one_hot)
+            if self.is_one_hot:
+                y_true = np.zeros(int(self.n_classes), dtype=np.int32)
+                y_true[y_index] = 1
+
+            else:
+                y_true = y_index
+
+            y_data.append(y_true)
 
             # 文件指针自增，获取下一个文件
             self.file_point += 1

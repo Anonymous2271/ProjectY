@@ -60,35 +60,28 @@ from scipy.interpolate import make_lsq_spline, BSpline
 # print(my_block.trainable_weights)
 
 
-y = np.array([2, 6, 4, 1, 8, 12, 23, 15, 6, 13])
-x = range(len(y))
-#
-# 求点的拟合曲线
-# parameter = np.polyfit(x=x, y=y, deg=4)  # 输出三次方程的参数
-# p = np.poly1d(parameter)  # 根据参数输出方程
-# print(p)
-#
-# plt.plot(p(x))
-# plt.show()
+def fun1(a):
+    if a.shape == (1, 2):
+        print("ok")
+    else:
+        raise Exception("shape error")
 
-y = np.array([2, 6, 4, 1, 8, 12, 23, 15, 6, 13])
+    return a * 2
 
 
-def smooth(values, weight=0.5):
-    """
-    :param values: 点集合
-    :param weight: 平滑度
-    :return:
-    """
-    last = values[0]  # 上一个值
-    smoothed = []
-    for point in values:
-        smoothed_val = last * weight + (1 - weight) * point  # 这个方程是从 Tensorboard 源码中扒出来的
-        smoothed.append(smoothed_val)
-        last = smoothed_val
+var1 = np.random.randint(10, size=(2, 1, 2))
+var2 = np.random.randint(10, size=(1, 2))
 
-    return smoothed
+print(var1)
+print(var1 > 5)
+
+# fun1(var1) 执行错误 shape error
+# fun1(var2) 可以执行
+
+# 执行
+rtn = tf.map_fn(fun1, var1)
+
+# 结果打印
+print(rtn)
 
 
-plt.plot(smooth(values=y))
-plt.show()

@@ -24,10 +24,10 @@ def smooth(values, weight=0.5):
     return smoothed
 
 
-def line_fit(x, y):
-    # 用最小二乘法求点的拟合曲线，没上面那个函数好用，会改变曲线轨迹
-    y = list(map(float, y))
-    parameter = np.polyfit(x=x, y=y, deg=3)  # 输出三次方程的参数
-    p = np.poly1d(parameter)  # 根据参数输出方程
-    print(p)
-    return p(x)
+# def line_fit(x, y):
+#     # 用最小二乘法求点的拟合曲线，没上面那个函数好用，会改变曲线轨迹
+#     y = list(map(float, y))
+#     parameter = np.polyfit(x=x, y=y, deg=3)  # 输出三次方程的参数
+#     p = np.poly1d(parameter)  # 根据参数输出方程
+#     print(p)
+#     return p(x)

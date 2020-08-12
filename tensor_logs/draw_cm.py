@@ -17,7 +17,7 @@ matplotlib.rcParams['font.family'] = 'Times New Roman'
 
 
 def txt_read():
-    logs_path = 'y_0.95_和论文里一样的参数，除了前置卷积.txt'
+    logs_path = 'y_2020-05-07-00-38-28.txt'
 
     y_pred = []
     y_true = []
@@ -86,7 +86,7 @@ data = txt_read()
 y_pred = data[0]
 y_true = data[1]
 target_names = ['Anser anser', 'Buteo buteo', 'Oriolus oriolus', 'Pica pica',
-                'Chiffchaff', 'Parus', 'Warbler', 'Blackbird']
+                'Turdus merula', 'Phylloscopus trochilus', 'Parus major', 'Phylloscopus collybita']
 labels = ['0', '1', '2', '3', '4', '5', '6', '7']
 print(classification_report(y_pred=y_pred, y_true=y_true, target_names=target_names, digits=3))
 

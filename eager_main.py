@@ -13,6 +13,7 @@ import time
 from input_data import BatchGenerator
 from MyException import MyException
 from y_model import YModel
+from base_line import CNN_GRU
 from tensor_logs.line_smooth import smooth
 import matplotlib.pyplot as plt
 import matplotlib
@@ -21,16 +22,16 @@ matplotlib.rcParams['font.size'] = 18
 tf.keras.backend.clear_session()
 
 # model para
-learning_rate = 0.001
+learning_rate = 0.005
 decay = 0.0001  # 学习率衰减
 momentum = 0.7  # 动量
 clip_norm = 1.5  # 梯度裁剪阈值
 
-n_layers = 4  # 网络的层数
-width_layer = 20  # 网络每层的宽度
-strides = 10  # 网络在序列数据中每个时间步前进的步长
-batch_size = 42
-epoch = 15  # 训练的 epoch 数，从1开始计数
+n_layers = 5  # 网络的层数
+width_layer = 5  # 网络每层的宽度
+strides = 3  # 网络在序列数据中每个时间步前进的步长
+batch_size = 64
+epoch = 12  # 训练的 epoch 数，从1开始计数
 rate_subset = 1  # 使用的子集占整个数据集的比例，为1时使用全部数据集
 rate_test = 0.3  # 测试数据占使用数据的比例
 n_classes = 8
@@ -47,7 +48,7 @@ y_pred = []
 
 def txt_save(data_m, name):
     """
-    以 txt 保存实验日志，tensorboard 画的图实在太丑了，并且不支持 eager 模式，只好自己写一个；
+    以 txt 保存实验日志，Tensorboard 输出的图不够专业，只好自己写一个；
     该 txt 文件，在draw_cm.py, draw_many_line.py, draw_single_line.py 中均支持，txt 文件说明如下：
     ————————————————————
     训练损失------line
@@ -71,8 +72,8 @@ def txt_save(data_m, name):
 
 
 # 初始化 input_data 类的对象
-batch_generator = BatchGenerator(file_dir='E:/数据集/sounds_data/new_images',
-                                 n_classes=n_classes, rate_subset=rate_subset, rate_test=rate_test)
+batch_generator = BatchGenerator(file_dir='D:/dataset/new_images',
+                                 n_classes=n_classes, rate_subset=rate_subset, rate_test=rate_test, is_one_hot=False)
 
 
 def cal_loss(logits, lab_batch):
@@ -82,13 +83,14 @@ def cal_loss(logits, lab_batch):
     :param lab_batch: 标签 batch
     :return: loss，tensor 类型
     """
-    cross_entropy = tf.nn.softmax_cross_entropy_with_logits(labels=lab_batch, logits=logits)
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=lab_batch, logits=logits)
     loss = tf.reduce_mean(cross_entropy)
     return loss
 
 
 # 初始化模型和优化器
 the_model = YModel(n_classes=n_classes, n_layers=n_layers, width_layer=width_layer, strides=strides)
+# the_model = CNN_GRU(n_classes=n_classes)
 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 # 在这里得到的参数是0，因为自定义的网络，在build()执行之后才会有graph
 # trainable_vas = the_model.trainable_weights
@@ -122,11 +124,11 @@ try:
             pass
 
         # 计算准确率
-        correct_pred = tf.equal(tf.argmax(logits, 1), tf.argmax(batch_y, 1))
+        correct_pred = tf.equal(tf.argmax(logits, 1), batch_y)
         accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
 
         step += 1  # step 自增
-        print('epoch:{}, stpe:{}, loss:{:.3f}, acc:{:.3f}'.
+        print('epoch:{}, step:{}, loss:{:.4f}, acc:{:.4f}'.
               format(epoch_index, step, loss, accuracy))
 
         # 记录每个 step 的实验日志
@@ -145,7 +147,7 @@ try:
             # 测试阶段，记录全部批次的记录预测值和标签值，用于混淆矩阵分析
             for l in tf.math.argmax(logits, axis=1).numpy():
                 y_pred.append(l)
-            for y in tf.math.argmax(batch_y, axis=1).numpy():
+            for y in batch_y:
                 y_true.append(y)
 
 # 捕获 input_data 在数据输送结束时的异常，开始画图
@@ -155,9 +157,7 @@ except MyException as e:
     txt_save(data_m, name='lines')
     txt_save([y_pred, y_true], name='y_')
 
-    # 平均准确率与损失
-    # print('average acc', tf.reduce_mean(test_acc_history))
-    # print('average loss', tf.reduce_mean(test_loss_history))
+    # 平均准确率, 损失, 方差
     print('acc [mean, variance]: ', np.mean(test_acc_history), np.var(test_acc_history))
     print('loss [mean, variance]: ', np.mean(test_loss_history), np.var(test_loss_history))
 
