@@ -13,7 +13,7 @@ import tensorflow.keras as k
 
 
 class FreqAttentionU(k.layers.Layer):
-    def __init__(self, filter_para=None, my_name=None, is_last_layer=False):
+    def __init__(self, filter_para=None, my_name=None, is_first_layer=False):
         """
         :param filter_para:
         :param my_name:
@@ -23,18 +23,19 @@ class FreqAttentionU(k.layers.Layer):
             filter_para = [8, 3, 3, 1, 1]
         self.f_para = filter_para
         self.my_name = my_name
-        self.is_last_layer = is_last_layer
+        self.is_first_layer = is_first_layer
 
     def build(self, input_shape):
-        # [2, ?, filter[0]*2, h, w]
-        c = input_shape[2]
-        h = input_shape[3]
+        # [?, filter[0]*2, h, w]
+        c = input_shape[1]
+        h = input_shape[2]
         # w = int(input_shape[3]/2)
-        w = input_shape[4]
+        w = input_shape[3]
 
         self.batch_size = input_shape[0]  # 这里的input_shape只取了第一次的，当最后一个批次的size有变化时，可能出错。
 
-        self.attention_freq = k.layers.Dense(units=h, activation=tf.nn.sigmoid, use_bias=False,
+        self.flatten = k.layers.Flatten(data_format='channels_first')
+        self.attention_freq = k.layers.Dense(units=40, activation=tf.nn.sigmoid, use_bias=False,
                                              kernel_initializer='glorot_uniform')
 
         self.conv_relation = k.layers.Conv2D(filters=self.f_para[0],
@@ -57,33 +58,45 @@ class FreqAttentionU(k.layers.Layer):
                                          kernel_initializer=k.initializers.glorot_uniform,
                                          bias_initializer=k.initializers.zeros)
 
-    def bool_mask(self, a):
+    def boolean_mask(self, a):
         median = np.median(a)
-        return a > median
+        return tf.less(median, a)
 
-    def attention_pooling(self, feat_a, feat_b):
-        line = self.attention_freq(feat_a).numpy()
-        mask_line = tf.map_fn(fn=self.bool_mask, elems=line)
+    def attention_pooling(self, hidden, inputs):
+        c = inputs.get_shape()[1]
+
+        hidden = self.flatten(hidden)
+        line = self.attention_freq(hidden)
+        mask_line = tf.map_fn(fn=self.boolean_mask, elems=line, dtype=bool)
+
+        print('hidden', hidden.get_shape())
+        print('line', line.get_shape())
+        print('mask_line', mask_line.get_shape())
+        print('inputs', inputs.get_shape())
 
         # [?, h]
-        mask = tf.expand_dims(mask_line, axis=-1)  # [?, h, 1]
-        mask = tf.tile(mask, [1, 1, 20])  # [?, h, 20]
-        mask = tf.expand_dims(mask, axis=1)  # [?, 1, h, 20]
-        mask = tf.tile(mask, [1, 8, 1, 1])  # [?, 8, h, 20]
+        # mask = tf.expand_dims(mask_line, axis=-1)  # [?, h, 1]
+        # mask = tf.tile(mask, [1, 1, 20])  # [?, h, 20]
+        mask = tf.expand_dims(mask_line, axis=1)  # [?, 1, h, 20]
+        mask = tf.tile(mask, [1, c, 1])  # [?, 8, h, 20]
+        print('mask', mask.get_shape())
 
-        feat_attention = tf.boolean_mask(tensor=feat_b, mask=mask)
+        feat_attention = tf.ragged.boolean_mask(data=inputs, mask=mask)
 
         return feat_attention
 
-    def call(self, inputs, **kwargs):
+    def call(self, inputs, hidden=None, **kwargs):
         # [?, filter[0], h, w]
-        feat_a = inputs[0]
-        feat_b = inputs[1]
+        if self.is_first_layer:
+            inputs = k.layers.MaxPool2D(pool_size=[2, 1], strides=[2, 1], padding='valid', data_format='channels_first')(inputs)
+
         # inputs = tf.concat(inputs, axis=1)
-        new_b = self.attention_pooling(feat_a, feat_b)
+        new_b = self.attention_pooling(hidden, inputs)
+        # print('new_b', new_b.get_shape())
 
-        relation = tf.concat([feat_a, new_b], axis=1)
+        relation = tf.concat([hidden, new_b], axis=1)
 
+        print('relation', relation.get_shape())
         feat_relation = self.conv_relation(relation)
         feat_relation = self.batch_norm(feat_relation)
         feat_relation = self.activate(feat_relation)

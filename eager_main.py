@@ -12,7 +12,8 @@ import numpy as np
 import time
 from input_data import BatchGenerator
 from MyException import MyException
-from y_model import YModel
+# from y_model import YModel
+from y_model_v2 import YModel
 from base_line import CNN_GRU
 from tensor_logs.line_smooth import smooth
 import matplotlib.pyplot as plt

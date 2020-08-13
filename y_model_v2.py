@@ -29,7 +29,7 @@ class YModel(keras.layers.Layer):
         self.i = 0  # 画图的batch计数器
 
         # 链式记忆层，参数不共享
-        self.lay1 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay1')
+        self.lay1 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay1', is_first_layer=True)
         self.lay2 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay2')
         self.lay3 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay3')
         self.lay4 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay4')
@@ -70,11 +70,11 @@ class YModel(keras.layers.Layer):
             # print('s1: ', s1.get_shape().as_list())
             # [?, ?, 18, 5]
 
-            f1 = self.lay1(inputs=[s1, s1])
-            f2 = self.lay2(inputs=[f1, s2])
-            f3 = self.lay3(inputs=[f2, s3])
-            f4 = self.lay4(inputs=[f3, s4])
-            f5 = self.lay5(inputs=[f4, s5])
+            h1 = self.lay1(inputs=s1, hidden=s1)
+            h2 = self.lay2(inputs=s2, hidden=h1)
+            h3 = self.lay3(inputs=s3, hidden=h2)
+            h4 = self.lay4(inputs=s4, hidden=h3)
+            h5 = self.lay5(inputs=s5, hidden=h4)
             # f1 = self.lay1(inputs=tf.concat(s1, axis=1))
             # f2 = self.lay2(inputs=tf.concat([f1, s2], axis=1))
             # f3 = self.lay3(inputs=tf.concat([f2, s3], axis=1))
@@ -86,7 +86,7 @@ class YModel(keras.layers.Layer):
             # if not is_train and index + self.width_net + self.strides > len_input:
             #     self.draw_hid_features(inputs=inputs, h_fea=tf.concat([f1, f2, f3, f4, f5], axis=-1))
             if index + self.width_net + self.strides > len_input:
-                logits.append(f5)
+                logits.append(h5)
 
             index += self.strides
 
