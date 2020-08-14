@@ -35,7 +35,7 @@ class FreqAttentionU(k.layers.Layer):
         self.batch_size = input_shape[0]  # 这里的input_shape只取了第一次的，当最后一个批次的size有变化时，可能出错。
 
         self.first_pool = k.layers.MaxPool2D(pool_size=[2, 1], strides=[2, 1], padding='valid', data_format='channels_first')
-        self.flatten = k.layers.Flatten(data_format='channels_last')
+        self.flatten = k.layers.Flatten(data_format='channels_first')
         self.attention_freq = k.layers.Dense(units=80, activation=tf.nn.sigmoid, use_bias=False,
                                              kernel_initializer='glorot_uniform')
 
@@ -85,7 +85,7 @@ class FreqAttentionU(k.layers.Layer):
         feat_attention = tf.ragged.boolean_mask(data=inputs, mask=mask)
         feat_attention = feat_attention.to_tensor()
         # print('mask_line', mask_line[0])
-        # print('feat_attention', feat_attention)
+        # print('feat_attention', feat_attention)  # [?, 1, 40, 6]
         # feat_attention = tf.split(feat_attention, num_or_size_splits=batch_size, axis=0)
         # feat_attention = tf.cast(feat_attention, dtype='float32')
 

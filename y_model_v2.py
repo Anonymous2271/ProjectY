@@ -37,7 +37,7 @@ class YModel(keras.layers.Layer):
 
         # 分类层
         self.gap = tf.keras.layers.GlobalAvgPool2D(data_format='channels_first')
-        self.frequency_matrix = self.add_weight(shape=[1, n_classes, 18, 5],
+        self.frequency_matrix = self.add_weight(shape=[1, n_classes, 40, 6],
                                                 initializer=keras.initializers.orthogonal, trainable=True)
         # self.flatten = keras.layers.Flatten(data_format='channels_first')
         # self.dense = tf.keras.layers.Dense(units=n_classes, activation=tf.nn.leaky_relu)
@@ -90,7 +90,7 @@ class YModel(keras.layers.Layer):
             index += self.strides
 
         # print('logits[-1]', logits)
-        class_weight = tf.tile(self.frequency_matrix, [64, 1, 1, 1], name="u_tiled")  # [bs, h, w, c]
+        class_weight = tf.tile(self.frequency_matrix, [32, 1, 1, 1], name="u_tiled")  # [bs, h, w, c]
         return self.gap(tf.multiply(logits[-1], class_weight))
         # return self.gap(logits[-1])
         # return self.dense(self.flatten(logits[-1]))
