@@ -63,11 +63,11 @@ class FreqAttentionU(k.layers.Layer):
         return tf.less(median, a)
 
     def attention_pooling(self, hidden, inputs):
-        c = inputs.get_shape()[1]
+        batch_size = inputs.get_shape()[0]
 
         hidden = self.flatten(hidden)
-        line = self.attention_freq(hidden)
-        mask_line = tf.map_fn(fn=self.boolean_mask, elems=line, dtype=bool)
+        line = self.attention_freq(hidden)  # [?, units]
+        mask_line = tf.map_fn(fn=self.boolean_mask, elems=line, dtype=bool)  # [?, units]
 
         print('hidden', hidden.get_shape())
         print('line', line.get_shape())
@@ -77,11 +77,13 @@ class FreqAttentionU(k.layers.Layer):
         # [?, h]
         # mask = tf.expand_dims(mask_line, axis=-1)  # [?, h, 1]
         # mask = tf.tile(mask, [1, 1, 20])  # [?, h, 20]
-        mask = tf.expand_dims(mask_line, axis=1)  # [?, 1, h, 20]
-        mask = tf.tile(mask, [1, c, 1])  # [?, 8, h, 20]
-        print('mask', mask.get_shape())
+        # mask = tf.expand_dims(mask_line, axis=1)  # [?, 1, h, 20]
+        # mask = tf.tile(mask, [1, c, 1])  # [?, 8, h, 20]
+        # print('mask', mask.get_shape())
 
-        feat_attention = tf.ragged.boolean_mask(data=inputs, mask=mask)
+        feat_attention = tf.boolean_mask(tensor=inputs, mask=mask_line, axis=0)
+        feat_attention = tf.split(feat_attention, num_or_size_splits=batch_size, axis=0)
+        feat_attention = tf.cast(feat_attention, dtype='int32')
 
         return feat_attention
 
