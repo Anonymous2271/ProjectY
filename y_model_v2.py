@@ -29,10 +29,10 @@ class YModel(keras.layers.Layer):
         self.i = 0  # 画图的batch计数器
 
         # 链式记忆层，参数不共享
-        self.lay1 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay1', is_first_layer=True)
-        self.lay2 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay2')
-        self.lay3 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay3')
-        self.lay4 = FreqAttentionU(filter_para=[12, 3, 3, 3, 3], my_name='lay4')
+        self.lay1 = FreqAttentionU(filter_para=[16, 3, 3, 3, 3], my_name='lay1', is_first_layer=True)
+        self.lay2 = FreqAttentionU(filter_para=[16, 3, 3, 3, 3], my_name='lay2')
+        self.lay3 = FreqAttentionU(filter_para=[16, 3, 3, 3, 3], my_name='lay3')
+        self.lay4 = FreqAttentionU(filter_para=[16, 3, 3, 3, 3], my_name='lay4')
         self.lay5 = FreqAttentionU(filter_para=[8, 3, 3, 3, 3], my_name='lay5')
 
         # 分类层
@@ -51,7 +51,6 @@ class YModel(keras.layers.Layer):
         :param inputs: [?, 1, 80, 600]
         :return: logits
         """
-        # [?, 8, 18, 148]
         # print('inputs: ', inputs.get_shape().as_list())
 
         len_input = inputs.get_shape().as_list()[-1]
@@ -90,8 +89,8 @@ class YModel(keras.layers.Layer):
 
             index += self.strides
 
-        # print(logits[-1].get_shape().as_list())
-        class_weight = tf.tile(self.frequency_matrix, [64, 1, 1, 1], name="u_tiled")  # [bs, c, h, w]
+        # print('logits[-1]', logits)
+        class_weight = tf.tile(self.frequency_matrix, [64, 1, 1, 1], name="u_tiled")  # [bs, h, w, c]
         return self.gap(tf.multiply(logits[-1], class_weight))
         # return self.gap(logits[-1])
         # return self.dense(self.flatten(logits[-1]))

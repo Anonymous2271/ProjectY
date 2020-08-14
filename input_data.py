@@ -16,7 +16,7 @@ from class_names import class_names
 
 
 class BatchGenerator(object):
-    def __init__(self, file_dir, n_classes=8, rate_subset=1, rate_test=0.3, is_one_hot=False):
+    def __init__(self, file_dir, n_classes=8, rate_subset=1, rate_test=0.3, is_one_hot=False, data_format='channels_last'):
         self.file_dir = file_dir
         self.training = True  # 指示当前状态是训练还是测试
         self.epoch_index = 1  # epoch 次数指针，训练从1开始计数，训练数据输送完会指0，开始输送测试数据，next_batch方法会给调用者返回这个值
@@ -26,6 +26,7 @@ class BatchGenerator(object):
         self.rate_subset = rate_subset  # 训练测试所使用的数据，占全部数据的比例
         self.rate_test = rate_test  # 测试数据占使用的数据的比例
         self.is_one_hot = is_one_hot  # 是否使用 one-hot 标签，这里在训练是使用的损失函数是不一样的
+        self.data_format = data_format
 
         self.train_fnames, self.train_labs, self.test_fnames, self.test_labs \
             = self.get_filenames(self.file_dir)
@@ -146,7 +147,12 @@ class BatchGenerator(object):
                 continue
 
             # 添加颜色通道，为数据增加一个维度
-            x = np.expand_dims(x, axis=0)
+            assert self.data_format == 'channels_first' or self.data_format == 'channels_last'
+            if self.data_format == 'channels_first':
+                x = np.expand_dims(x, axis=0)
+            else:
+                x = np.expand_dims(x, axis=-1)
+
             x_data.append(x)  # (image.data, dtype='float32')
 
             # 生成标签

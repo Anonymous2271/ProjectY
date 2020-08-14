@@ -29,7 +29,7 @@ momentum = 0.7  # 动量
 clip_norm = 1.5  # 梯度裁剪阈值
 
 n_layers = 5  # 网络的层数
-width_layer = 5  # 网络每层的宽度
+width_layer = 6  # 网络每层的宽度
 strides = 3  # 网络在序列数据中每个时间步前进的步长
 batch_size = 64
 epoch = 12  # 训练的 epoch 数，从1开始计数
@@ -73,8 +73,8 @@ def txt_save(data_m, name):
 
 
 # 初始化 input_data 类的对象
-batch_generator = BatchGenerator(file_dir='D:/dataset/new_images',
-                                 n_classes=n_classes, rate_subset=rate_subset, rate_test=rate_test, is_one_hot=False)
+batch_generator = BatchGenerator(file_dir='D:/dataset/new_images', n_classes=n_classes, rate_subset=rate_subset,
+                                 rate_test=rate_test, is_one_hot=False, data_format='channels_first')
 
 
 def cal_loss(logits, lab_batch):
