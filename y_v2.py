@@ -59,7 +59,7 @@ class FreqAttentionU(k.layers.Layer):
                                          kernel_initializer=k.initializers.glorot_uniform,
                                          bias_initializer=k.initializers.zeros)
 
-    def boolean_mask(self, a):
+    def to_boolean(self, a):
         median = np.median(a)
         return tf.less(median, a)
 
@@ -68,28 +68,24 @@ class FreqAttentionU(k.layers.Layer):
 
         hidden = self.flatten(hidden)
         line = self.attention_freq(hidden)  # [?, units]
-        mask_line = tf.map_fn(fn=self.boolean_mask, elems=line, dtype=bool)  # [?, units]
-
-        # print('hidden', hidden.get_shape())
-        # print('line', line.get_shape())
-        # print('mask_line', mask_line.get_shape())
-        # print('inputs', inputs.get_shape())
+        mask_line = tf.map_fn(fn=self.to_boolean, elems=line, dtype=bool)  # [?, units]
 
         # [?, h]
-        # mask = tf.expand_dims(mask_line, axis=-1)  # [?, h, 1]
-        # mask = tf.tile(mask, [1, 1, 20])  # [?, h, 20]
-        mask = tf.expand_dims(mask_line, axis=1)  # [?, 1, h, 20]
-        mask = tf.tile(mask, [1, channels, 1])  # [?, 8, h, 20]
-        # print('mask', mask.get_shape())
+        mask = tf.expand_dims(mask_line, axis=1)
+        mask = tf.tile(mask, [1, channels, 1])
+        inverse = tf.equal(mask, True)  # 取反
 
-        feat_attention = tf.ragged.boolean_mask(data=inputs, mask=mask)
+        feat_attention = tf.ragged.boolean_mask(data=inputs, mask=mask)  # 维度变化，导致梯度消失
+        feat_dropout = tf.ragged.boolean_mask(data=inputs, mask=inverse)
         feat_attention = feat_attention.to_tensor()
-        # print('mask_line', mask_line[0])
-        # print('feat_attention', feat_attention)  # [?, 1, 40, 6]
-        # feat_attention = tf.split(feat_attention, num_or_size_splits=batch_size, axis=0)
-        # feat_attention = tf.cast(feat_attention, dtype='float32')
+        feat_dropout = feat_dropout.to_tensor()
 
-        return feat_attention
+        print('feat_attention', feat_attention.get_shape())
+        print('feat_dropout', feat_dropout.get_shape())
+
+        out = tf.add(feat_attention, tf.multiply(feat_dropout, 0.0001))
+
+        return out
 
     def call(self, inputs, hidden=None, **kwargs):
         # [?, filter[0], h, w]

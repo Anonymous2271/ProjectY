@@ -18,9 +18,9 @@ from y_v2 import FreqAttentionU
 h_layer_fea_dir = '5 层'
 
 
-class YModel(keras.layers.Layer):
+class YModel_V2(keras.layers.Layer):
     def __init__(self, n_layers, n_classes, width_layer, strides):
-        super(YModel, self).__init__()
+        super(YModel_V2, self).__init__()
         self.n_layers = n_layers
         self.n_classes = n_classes
         self.width_layer = width_layer

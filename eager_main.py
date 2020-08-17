@@ -13,7 +13,7 @@ import time
 from input_data import BatchGenerator
 from MyException import MyException
 # from y_model import YModel
-from y_model_v2 import YModel
+from y_model_v2 import YModel_V2
 from base_line import CNN_GRU
 from tensor_logs.line_smooth import smooth
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ import matplotlib
 matplotlib.rcParams['font.size'] = 18
 tf.keras.backend.clear_session()
 
-# model para
+# Model para
 learning_rate = 0.005
 decay = 0.0001  # 学习率衰减
 momentum = 0.7  # 动量
@@ -90,7 +90,7 @@ def cal_loss(logits, lab_batch):
 
 
 # 初始化模型和优化器
-the_model = YModel(n_classes=n_classes, n_layers=n_layers, width_layer=width_layer, strides=strides)
+the_model = YModel_V2(n_classes=n_classes, n_layers=n_layers, width_layer=width_layer, strides=strides)
 # the_model = CNN_GRU(n_classes=n_classes)
 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 # 在这里得到的参数是0，因为自定义的网络，在build()执行之后才会有graph
